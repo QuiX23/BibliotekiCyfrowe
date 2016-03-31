@@ -6,6 +6,7 @@ using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -55,6 +56,9 @@ namespace FacerForm
 
             label1.Text = trackBar1.Value.ToString() + "%";
         }
+        [DllImport("FaceRecognitionDll.dll", CallingConvention = CallingConvention.StdCall, EntryPoint = "_CheckPhoto@4", ExactSpelling = true)]
+        static extern int CheckPhoto(string path);
+
 
         private void button1_Click(object sender, EventArgs e)
         {
@@ -144,9 +148,9 @@ namespace FacerForm
                 Photo[] mouthPhotos = new Photo[dlg.FileNames.Length];
                 Photo[] eysPhotos = new Photo[dlg.FileNames.Length];
 
-                CreateSeries(dlg, nose, ref series, ref nosePhotos);
-                CreateSeries(dlg, mouth, ref series, ref mouthPhotos);
-                CreateSeries(dlg, eyes, ref series, ref eysPhotos);
+               series[0]= CreateSeries(dlg, nose, ref series, ref nosePhotos);
+                series[1] = CreateSeries(dlg, mouth, ref series, ref mouthPhotos);
+                series[2] = CreateSeries(dlg, eyes, ref series, ref eysPhotos);
 
                 MulitSeries multiSeries = new MulitSeries(series);
 
@@ -166,7 +170,7 @@ namespace FacerForm
             outputFile.Close();
         }
 
-        private void CreateSeries(OpenFileDialog dlg,string type,ref Series[] series,ref Photo[] photos)
+        private Series CreateSeries(OpenFileDialog dlg,string type,ref Series[] series,ref Photo[] photos)
         {
             int i = 0;
             foreach (var file in dlg.FileNames)
@@ -175,12 +179,12 @@ namespace FacerForm
                 i++;
             }
 
-            series[0] = new Series(Path.GetFileName(type), photos);
+            return new Series(Path.GetFileName(type), photos);
         }
 
         private Photo RandPhotos(string file,string type)
         {
-            randFact = ((float) rnd.Next(0, 20))/100.0f;
+            randFact = 0.0005f;//rnd.Next(0, 20))/100.0f;
 
             Bitmap bmp =(Bitmap)Image.FromFile(file);
             Photo photo = new Photo(Path.GetFileName(file),bmp.Width, bmp.Height,(int)(randFact*100), RandPixels(Process(type,bmp), ref bmp));
@@ -191,7 +195,7 @@ namespace FacerForm
         private Pixel [] RandPixels(Rectangle rect,ref Bitmap bmp)
         {
 
-            int size = (int)((float)rect.Width*(float)rect.Height*randFact);
+            int size = (int)((float)bmp.Width*(float)bmp.Height*randFact);
             Pixel[] pixels=new Pixel[size];
 
             int x = rect.X, y = rect.Y;
@@ -244,6 +248,38 @@ namespace FacerForm
         {
             randFact = ((float) trackBar1.Value)/100.0f;
             label1.Text = trackBar1.Value.ToString()+"%";
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            using (OpenFileDialog dlg = new OpenFileDialog())
+            {
+                // Set the file dialog to filter for graphics files.
+                dlg.Filter =
+                    "Images (*.BMP;*.JPG;*.GIF)|*.BMP;*.JPG;*.GIF|" +
+                    "All files (*.*)|*.*";
+
+                // Allow the user to select multiple images.
+                dlg.Multiselect = true;
+                dlg.Title = "My Image Browser";
+                DialogResult dr = dlg.ShowDialog();
+
+                foreach (var file in dlg.FileNames)
+                {
+                    var returned = 0;
+                    try
+                    {
+                        returned = CheckPhoto(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("!Błąd - Biblioteka zgłosiła wyjątek: {0}", ex.ToString());
+                    }
+                    Console.WriteLine(returned);
+                }
+            }
+
+            
         }
     }
 }
